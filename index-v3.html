@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Track — 每日一曲</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Noto+Serif+SC:wght@500;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14120f;
+    --ink: #e9e2d4;
+    --ink-2: rgba(233, 226, 212, 0.52);
+    --ink-3: rgba(233, 226, 212, 0.28);
+    --hairline: rgba(233, 226, 212, 0.14);
+    --accent: #c77575;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent); color: var(--bg); }
+
+  /* 胶片颗粒（克制版） */
+  .grain {
+    position: fixed; inset: 0; z-index: 60; pointer-events: none;
+    opacity: .05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .page {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- 刊头 ---------- */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 26px 4.5vw 18px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .masthead {
+    font-family: "Playfair Display", "Noto Serif SC", serif;
+    font-style: italic;
+    font-size: 21px;
+    letter-spacing: .5px;
+  }
+  .masthead b { font-style: normal; font-weight: 700; }
+  .issue {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--ink-2);
+    text-transform: uppercase;
+    display: flex; gap: 3em;
+  }
+
+  /* ---------- 主体 ---------- */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(320px, 5fr);
+    min-height: 0;
+  }
+
+  /* 唱片区：向左探出页面，像从封套里抽出来 */
+  .deck {
+    position: relative;
+    display: flex;
+    align-items: center;
+    overflow: visible;
+  }
+  .disc-wrap {
+    position: relative;
+    width: min(62vh, 44vw);
+    height: min(62vh, 44vw);
+    margin-left: max(-9vw, -140px);
+  }
+  #ring {
+    position: absolute;
+    inset: -8%;
+    width: 116%; height: 116%;
+  }
+  .disc {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: #0b0a09;
+    box-shadow:
+      24px 30px 70px rgba(0,0,0,.65),
+      0 0 0 1px rgba(233,226,212,.07);
+    animation: spin 10s linear infinite;
+    animation-play-state: paused;
+  }
+  .disc.on { animation-play-state: running; }
+  .disc::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: repeating-radial-gradient(circle, #0b0a09 0 2px, #171512 2px 3px);
+  }
+  .disc::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 215deg,
+      transparent 0deg, rgba(255,255,255,.07) 16deg, transparent 40deg,
+      transparent 155deg, rgba(255,255,255,.05) 172deg, transparent 198deg);
+  }
+  .label {
+    position: absolute; top: 50%; left: 50%;
+    width: 41%; height: 41%;
+    transform: translate(-50%,-50%);
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.65), 0 0 0 2px rgba(0,0,0,.5);
+  }
+  .label img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .spindle {
+    position: absolute; top: 50%; left: 50%;
+    width: 12px; height: 12px;
+    transform: translate(-50%,-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #efe9dc, #8d877a 60%, #413d34);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 唱臂 */
+  .arm {
+    position: absolute;
+    top: -6%; right: -10%;
+    width: 10px; height: 58%;
+    transform-origin: 50% 10%;
+    transform: rotate(-40deg);
+    transition: transform 1.1s cubic-bezier(.3,1.25,.45,1);
+    z-index: 5;
+  }
+  .disc-wrap.on .arm { transform: rotate(-11deg); }
+  .arm .pivot {
+    position: absolute; top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 36px; height: 36px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ddd6c7, #6e685c 65%, #37332b);
+    box-shadow: 0 4px 10px rgba(0,0,0,.55);
+  }
+  .arm .rod {
+    position: absolute; top: 17px; left: 50%;
+    transform: translateX(-50%);
+    width: 4px; height: calc(100% - 17px);
+    background: linear-gradient(90deg, #b3ac9d, #6f695e 50%, #9c9586);
+    border-radius: 2px;
+  }
+  .arm .head {
+    position: absolute; bottom: -12px; left: 50%;
+    transform: translateX(-50%) rotate(7deg);
+    width: 14px; height: 26px; border-radius: 2px;
+    background: linear-gradient(180deg, var(--accent), #241f1b 135%);
+  }
+
+  /* ---------- 衬页（右栏） ---------- */
+  .liner {
+    border-left: 1px solid var(--hairline);
+    padding: 4vh 4vw 3vh 3.2vw;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .row-label {
+    font-size: 10px;
+    letter-spacing: 3.5px;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .row-label::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
+
+  .title-block { margin: 2.6vh 0 0; }
+  .song-no {
+    font-family: "Playfair Display", serif;
+    font-style: italic;
+    color: var(--accent);
+    font-size: 15px;
+    margin-bottom: 1vh;
+  }
+  .song-title {
+    font-family: "Noto Serif SC", "Songti SC", serif;
+    font-weight: 900;
+    font-size: clamp(34px, 4.2vw, 62px);
+    line-height: 1.2;
+    letter-spacing: 1px;
+  }
+  .song-title .ch { display: inline-block; }
+  .song-en {
+    font-family: "Playfair Display", serif;
+    font-style: italic;
+    font-size: clamp(14px, 1.2vw, 18px);
+    color: var(--ink-2);
+    margin-top: 1vh;
+  }
+
+  .quote {
+    margin-top: 3vh;
+    font-family: "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(13px, 1.05vw, 16px);
+    line-height: 2.1;
+    color: var(--ink-2);
+    max-width: 32em;
+  }
+  .quote::first-letter { color: var(--accent); }
+
+  /* 技术档案：唱片内页式表格 */
+  .specs { margin-top: 3.4vh; border-top: 1px solid var(--hairline); }
+  .spec {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .spec .k {
+    font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--ink-3);
+  }
+  .spec .v {
+    font-size: 12px; letter-spacing: 1px; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 播放控制 */
+  .player { margin-top: auto; padding-top: 2.5vh; }
+  .bar {
+    position: relative; height: 1px;
+    background: var(--hairline);
+    cursor: pointer;
+    margin: 14px 0 8px;
+  }
+  .bar .fill { position: absolute; left: 0; top: -0.5px; height: 2px; width: 0%; background: var(--accent); }
+  .bar .knob {
+    position: absolute; top: 50%; left: 0%;
+    width: 9px; height: 9px;
+    transform: translate(-50%,-50%);
+    border-radius: 50%;
+    background: var(--accent);
+    animation: breathe 2.6s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .bar.on .knob { animation-play-state: running; }
+  @keyframes breathe {
+    0%,100% { box-shadow: 0 0 0 0 rgba(199,117,117,.35); }
+    50% { box-shadow: 0 0 0 7px rgba(199,117,117,0); }
+  }
+  .times {
+    display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 2px; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .ctl {
+    display: flex; align-items: center; gap: 26px;
+    margin-top: 2vh;
+  }
+  .tbtn {
+    border: none; background: none; cursor: pointer;
+    font-family: "Inter", sans-serif;
+    font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--ink-2);
+    padding: 6px 2px;
+    border-bottom: 1px solid transparent;
+    transition: color .2s, border-color .2s;
+  }
+  .tbtn:hover { color: var(--ink); border-bottom-color: var(--accent); }
+  .playbtn {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    border: 1px solid var(--ink-3);
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .25s, background .25s;
+  }
+  .playbtn:hover { border-color: var(--accent); background: rgba(199,117,117,.08); }
+  .vol { margin-left: auto; display: flex; align-items: center; gap: 9px; color: var(--ink-3); }
+  .vol input {
+    appearance: none; width: 72px; height: 1px;
+    background: var(--hairline); outline: none; cursor: pointer;
+  }
+  .vol input::-webkit-slider-thumb {
+    appearance: none; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--ink);
+  }
+
+  /* ---------- 底栏：唱片背面式曲目表 ---------- */
+  footer {
+    border-top: 1px solid var(--hairline);
+    padding: 0 4.5vw;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .cut {
+    display: flex; align-items: baseline; gap: 1.2em;
+    padding: 16px 1.5vw 18px;
+    border-right: 1px solid var(--hairline);
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .cut:first-child { padding-left: 0; }
+  .cut:last-child { border-right: none; }
+  .cut:hover { background: rgba(233,226,212,.03); }
+  .cut .no {
+    font-family: "Playfair Display", serif; font-style: italic;
+    font-size: 13px; color: var(--ink-3);
+    transition: color .2s;
+  }
+  .cut .n { font-family: "Noto Serif SC", serif; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+  .cut .g { margin-left: auto; font-size: 9px; letter-spacing: 2px; color: var(--ink-3); text-transform: uppercase; }
+  .cut.active .no, .cut.active .n { color: var(--accent); }
+
+  /* 右缘竖排 */
+  .vertical {
+    position: fixed;
+    right: 1.2vw; top: 50%;
+    transform: translateY(-50%);
+    writing-mode: vertical-rl;
+    font-family: "Noto Serif SC", serif;
+    font-size: 11px;
+    letter-spacing: 8px;
+    color: var(--ink-3);
+    z-index: 5;
+    user-select: none;
+  }
+
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    .page { height: auto; min-height: 100vh; }
+    main { grid-template-columns: 1fr; }
+    .deck { justify-content: center; padding: 6vh 0; }
+    .disc-wrap { margin-left: 0; width: 70vw; height: 70vw; }
+    .liner { border-left: none; border-top: 1px solid var(--hairline); padding: 4vh 6vw; }
+    footer { grid-template-columns: 1fr; }
+    .cut { border-right: none; border-bottom: 1px solid var(--hairline); padding-left: 0; }
+    .vertical { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div class="vertical">毎日一曲・レコードのある暮らし</div>
+
+<div class="page">
+  <header>
+    <div class="masthead">Daily <b>Track</b></div>
+    <div class="issue">
+      <span id="issueNo">No. —</span>
+      <span>Side A · 33⅓ RPM</span>
+      <span id="issueDate">—</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="deck">
+      <div class="disc-wrap" id="discWrap">
+        <canvas id="ring"></canvas>
+        <div class="disc" id="disc">
+          <div class="label"><img id="cover" src="covers/city-pop.png" alt=""></div>
+          <div class="spindle"></div>
+        </div>
+        <div class="arm"><div class="pivot"></div><div class="rod"></div><div class="head"></div></div>
+      </div>
+    </section>
+
+    <aside class="liner">
+      <div class="row-label">Now Spinning</div>
+
+      <div class="title-block">
+        <div class="song-no" id="songNo">A1.</div>
+        <h1 class="song-title" id="title">街灯唱片店</h1>
+        <div class="song-en" id="songEn">Streetlight Records</div>
+      </div>
+
+      <p class="quote" id="quote"></p>
+
+      <div class="specs">
+        <div class="spec"><span class="k">Genre</span><span class="v" id="specGenre">City Pop</span></div>
+        <div class="spec"><span class="k">Scene</span><span class="v" id="specScene">傍晚散步</span></div>
+        <div class="spec"><span class="k">Duration</span><span class="v" id="specDur">—</span></div>
+        <div class="spec"><span class="k">Format</span><span class="v">Vinyl 12″ · Stereo</span></div>
+      </div>
+
+      <div class="player">
+        <div class="bar" id="bar"><div class="fill" id="fill"></div><div class="knob" id="knob"></div></div>
+        <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+        <div class="ctl">
+          <button class="tbtn" id="prev">Prev</button>
+          <button class="playbtn" id="play" aria-label="播放或暂停">
+            <svg id="iPlay" width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="iPause" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+          </button>
+          <button class="tbtn" id="next">Next</button>
+          <div class="vol">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+            <input type="range" id="volume" min="0" max="100" value="70" aria-label="音量">
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer id="cuts"></footer>
+</div>
+
+<audio id="audio" crossorigin="anonymous" preload="metadata"></audio>
+
+<script>
+const tracks = [
+  {
+    title: "街灯唱片店", en: "Streetlight Records",
+    genre: "City Pop", scene: "傍晚散步",
+    quote: "路灯一盏一盏亮起来的时候，这条街就变成了八十年代的唱片封面。",
+    cover: "covers/city-pop.png", src: "audio/track1.mp3"
+  },
+  {
+    title: "雨夜书桌", en: "Desk by the Rainy Window",
+    genre: "Lofi", scene: "学习放空",
+    quote: "雨点敲在窗上，台灯把桌面圈成一座小岛，今晚只做一件事：什么都不赶。",
+    cover: "covers/lofi.png", src: "audio/track2.mp3"
+  },
+  {
+    title: "驶向落日", en: "Driving into the Sunset",
+    genre: "Synthwave", scene: "夜间公路",
+    quote: "把车窗摇下来，让合成器的贝斯线和风一起灌进来，落日是今晚的终点站。",
+    cover: "covers/synthwave.png", src: "audio/track3.mp3"
+  }
+];
+
+const $ = id => document.getElementById(id);
+const audio = $("audio"), disc = $("disc"), discWrap = $("discWrap");
+const cover = $("cover"), titleEl = $("title");
+const bar = $("bar"), fill = $("fill"), knob = $("knob");
+const iPlay = $("iPlay"), iPause = $("iPause");
+let current = 0, playing = false;
+
+/* 期刊号与日期 */
+(function () {
+  const d = new Date();
+  const dayNo = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  $("issueNo").textContent = "No. " + String(dayNo).padStart(3, "0");
+  $("issueDate").textContent = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+})();
+
+/* 标题逐字入场 */
+const animStyle = document.createElement("style");
+animStyle.textContent = "@keyframes chIn{from{opacity:0;transform:translateY(.5em)}to{opacity:1;transform:none}}";
+document.head.appendChild(animStyle);
+function setTitle(t) {
+  titleEl.innerHTML = "";
+  [...t].forEach((c, i) => {
+    const s = document.createElement("span");
+    s.className = "ch"; s.textContent = c;
+    s.style.animation = `chIn .55s ${i * .045}s cubic-bezier(.2,.8,.3,1) both`;
+    titleEl.appendChild(s);
+  });
+}
+
+function fmt(s) {
+  if (!isFinite(s)) return "0:00";
+  return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+}
+
+function renderCuts() {
+  $("cuts").innerHTML = "";
+  tracks.forEach((t, i) => {
+    const el = document.createElement("div");
+    el.className = "cut" + (i === current ? " active" : "");
+    el.innerHTML = `<span class="no">A${i + 1}.</span><span class="n">${t.title}</span><span class="g">${t.genre}</span>`;
+    el.onclick = () => load(i, true);
+    $("cuts").appendChild(el);
+  });
+}
+
+function load(i, autoplay) {
+  current = i;
+  const t = tracks[i];
+  audio.src = t.src;
+  cover.src = t.cover;
+  $("songNo").textContent = "A" + (i + 1) + ".";
+  setTitle(t.title);
+  $("songEn").textContent = t.en;
+  $("quote").textContent = t.quote;
+  $("specGenre").textContent = t.genre;
+  $("specScene").textContent = t.scene;
+  $("specDur").textContent = "—";
+  renderCuts();
+  if (autoplay) play();
+}
+
+function play() {
+  audio.play().then(() => {
+    playing = true;
+    disc.classList.add("on");
+    discWrap.classList.add("on");
+    bar.classList.add("on");
+    iPlay.style.display = "none";
+    iPause.style.display = "block";
+  }).catch(() => {});
+}
+function pause() {
+  audio.pause();
+  playing = false;
+  disc.classList.remove("on");
+  discWrap.classList.remove("on");
+  bar.classList.remove("on");
+  iPlay.style.display = "block";
+  iPause.style.display = "none";
+}
+
+$("play").onclick = () => playing ? pause() : play();
+$("prev").onclick = () => load((current - 1 + tracks.length) % tracks.length, true);
+$("next").onclick = () => load((current + 1) % tracks.length, true);
+audio.onended = () => load((current + 1) % tracks.length, true);
+audio.ontimeupdate = () => {
+  if (audio.duration) {
+    const p = audio.currentTime / audio.duration * 100;
+    fill.style.width = p + "%";
+    knob.style.left = p + "%";
+    $("cur").textContent = fmt(audio.currentTime);
+  }
+};
+audio.onloadedmetadata = () => {
+  $("dur").textContent = fmt(audio.duration);
+  $("specDur").textContent = fmt(audio.duration);
+};
+bar.onclick = e => {
+  if (!audio.duration) return;
+  const r = bar.getBoundingClientRect();
+  audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
+};
+$("volume").oninput = e => audio.volume = e.target.value / 100;
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); playing ? pause() : play(); }
+  if (e.code === "ArrowRight") $("next").click();
+  if (e.code === "ArrowLeft") $("prev").click();
+});
+
+/* 环形刻线频谱（纤细、克制） */
+const canvas = $("ring"), g = canvas.getContext("2d");
+let analyser = null, dataArr = null;
+function initAudio() {
+  if (analyser) return;
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ac.createMediaElementSource(audio);
+    analyser = ac.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.84;
+    src.connect(analyser);
+    analyser.connect(ac.destination);
+    dataArr = new Uint8Array(analyser.frequencyBinCount);
+  } catch (e) { analyser = null; }
+}
+$("play").addEventListener("click", initAudio, { once: true });
+
+function draw() {
+  requestAnimationFrame(draw);
+  const r = canvas.getBoundingClientRect();
+  const s = Math.min(r.width, r.height) * devicePixelRatio;
+  if (canvas.width !== s) { canvas.width = s; canvas.height = s; }
+  g.clearRect(0, 0, s, s);
+  if (!analyser) return;
+  analyser.getByteFrequencyData(dataArr);
+  const cx = s / 2, cy = s / 2, baseR = s * 0.375, n = 90;
+  for (let i = 0; i < n; i++) {
+    const v = dataArr[Math.floor(i / n * dataArr.length * 0.68)] / 255;
+    const len = v * s * 0.05 + s * 0.003;
+    const a = i / n * Math.PI * 2 - Math.PI / 2;
+    g.strokeStyle = "#e9e2d4";
+    g.globalAlpha = 0.1 + v * 0.5;
+    g.lineWidth = Math.max(1, s * 0.0016);
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * baseR, cy + Math.sin(a) * baseR);
+    g.lineTo(cx + Math.cos(a) * (baseR + len), cy + Math.sin(a) * (baseR + len));
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+draw();
+
+audio.volume = 0.7;
+load(0, false);
+</script>
+</body>
+</html>

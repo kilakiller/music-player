@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日常唱片 · Daily Vinyl</title>
+<style>
+  :root {
+    --bg: #f6f3ec;
+    --panel: #ffffff;
+    --ink: #23201a;
+    --ink-soft: #7a7365;
+    --line: #e4ded0;
+    --accent: #c94f2c;
+    --accent-soft: #f3ddd3;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 980px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(35, 32, 26, 0.08);
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    overflow: hidden;
+  }
+
+  /* ---------- 左侧：唱片区 ---------- */
+  .stage {
+    padding: 48px 44px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-right: 1px solid var(--line);
+    background:
+      radial-gradient(circle at 30% 20%, rgba(201,79,44,0.05), transparent 55%),
+      var(--panel);
+  }
+  .brand {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 36px;
+  }
+  .brand .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .brand h1 {
+    font-size: 15px;
+    letter-spacing: 2px;
+    font-weight: 600;
+  }
+  .brand span {
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 1px;
+  }
+
+  .vinyl-wrap {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    margin-bottom: 34px;
+  }
+  .vinyl {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: 0 14px 34px rgba(35,32,26,0.22);
+    animation: spin 14s linear infinite;
+    animation-play-state: paused;
+  }
+  .vinyl.playing { animation-play-state: running; }
+  .vinyl img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .vinyl::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+      repeating-radial-gradient(circle, transparent 0 3px, rgba(0,0,0,0.14) 3px 4px);
+    pointer-events: none;
+    mix-blend-mode: multiply;
+    opacity: 0.5;
+  }
+  .vinyl .hole {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 58px; height: 58px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--panel);
+    border: 6px solid rgba(35,32,26,0.85);
+    z-index: 2;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tonearm {
+    position: absolute;
+    top: -18px; right: -16px;
+    width: 8px;
+    height: 150px;
+    background: linear-gradient(180deg, #3a362e, #6e6759);
+    border-radius: 4px;
+    transform-origin: 50% 14px;
+    transform: rotate(-32deg);
+    transition: transform 0.8s cubic-bezier(.34,1.4,.5,1);
+    z-index: 3;
+    box-shadow: 0 6px 14px rgba(35,32,26,0.25);
+  }
+  .tonearm::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #3a362e;
+  }
+  .tonearm::after {
+    content: "";
+    position: absolute;
+    bottom: -10px; left: 50%;
+    transform: translateX(-50%);
+    width: 18px; height: 26px;
+    border-radius: 3px;
+    background: var(--accent);
+  }
+  .vinyl-wrap.playing .tonearm { transform: rotate(-6deg); }
+
+  .now-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; text-align: center; }
+  .now-artist { font-size: 13px; color: var(--ink-soft); margin-bottom: 28px; letter-spacing: 1px; }
+
+  /* 进度条 */
+  .progress-area { width: 100%; max-width: 340px; }
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--line);
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+  }
+  .progress-fill {
+    position: absolute;
+    left: 0; top: 0;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 3px;
+  }
+  .progress-fill::after {
+    content: "";
+    position: absolute;
+    right: -6px; top: 50%;
+    transform: translateY(-50%);
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .time-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 控制按钮 */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    margin-top: 26px;
+  }
+  .btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, color 0.15s;
+  }
+  .btn:hover { color: var(--accent); transform: scale(1.08); }
+  .btn:active { transform: scale(0.95); }
+  .btn-main {
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--panel);
+  }
+  .btn-main:hover { background: var(--accent); color: #fff; }
+
+  .volume-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 24px;
+    width: 100%;
+    max-width: 340px;
+    color: var(--ink-soft);
+  }
+  .volume-row input[type="range"] {
+    flex: 1;
+    appearance: none;
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .volume-row input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    cursor: pointer;
+  }
+
+  /* ---------- 右侧：歌单 ---------- */
+  .playlist {
+    padding: 48px 36px;
+    display: flex;
+    flex-direction: column;
+    background: #fbf9f4;
+  }
+  .playlist-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 24px;
+  }
+  .playlist-header h2 { font-size: 17px; font-weight: 700; }
+  .playlist-header span { font-size: 12px; color: var(--ink-soft); }
+
+  .track {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .track:hover { background: #fff; border-color: var(--line); }
+  .track.active {
+    background: #fff;
+    border-color: var(--line);
+    box-shadow: 0 4px 14px rgba(35,32,26,0.06);
+  }
+  .track img {
+    width: 52px; height: 52px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .track-info { flex: 1; min-width: 0; }
+  .track-info .t-name {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .track-info .t-artist {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 3px;
+  }
+  .track .t-dur {
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .track.active .t-name { color: var(--accent); }
+
+  .eq {
+    display: none;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+    margin-right: 4px;
+  }
+  .track.active.playing .eq { display: flex; }
+  .track.active.playing .t-dur { display: none; }
+  .eq i {
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: bounce 0.9s ease-in-out infinite;
+  }
+  .eq i:nth-child(1) { height: 60%; animation-delay: 0s; }
+  .eq i:nth-child(2) { height: 100%; animation-delay: 0.2s; }
+  .eq i:nth-child(3) { height: 45%; animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+
+  .playlist-tip {
+    margin-top: auto;
+    padding-top: 24px;
+    font-size: 11px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+    border-top: 1px dashed var(--line);
+  }
+
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    .stage { border-right: none; border-bottom: 1px solid var(--line); }
+    .vinyl-wrap { width: 240px; height: 240px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- 左侧 -->
+  <section class="stage">
+    <div class="brand">
+      <span class="dot"></span>
+      <h1>日常唱片</h1>
+      <span>DAILY VINYL</span>
+    </div>
+
+    <div class="vinyl-wrap" id="vinylWrap">
+      <div class="vinyl" id="vinyl">
+        <img id="cover" src="covers/city-pop.png" alt="封面">
+        <div class="hole"></div>
+      </div>
+      <div class="tonearm"></div>
+    </div>
+
+    <div class="now-title" id="nowTitle">街灯唱片店</div>
+    <div class="now-artist" id="nowArtist">CITY POP · 傍晚散步时听</div>
+
+    <div class="progress-area">
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="time-row">
+        <span id="currentTime">0:00</span>
+        <span id="duration">0:00</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="prevBtn" title="上一首">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+      </button>
+      <button class="btn btn-main" id="playBtn" title="播放/暂停">
+        <svg id="iconPlay" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="iconPause" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <button class="btn" id="nextBtn" title="下一首">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+      </button>
+    </div>
+
+    <div class="volume-row">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+      <input type="range" id="volume" min="0" max="100" value="70">
+    </div>
+  </section>
+
+  <!-- 右侧 -->
+  <aside class="playlist">
+    <div class="playlist-header">
+      <h2>今日歌单</h2>
+      <span id="trackCount">3 首</span>
+    </div>
+    <div id="trackList"></div>
+    <p class="playlist-tip">点击列表任意一首切换播放。音频为演示音源，后续可替换为本地音乐文件或自建曲库。</p>
+  </aside>
+</div>
+
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+const tracks = [
+  {
+    title: "街灯唱片店",
+    artist: "CITY POP · 傍晚散步时听",
+    cover: "covers/city-pop.png",
+    src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+  },
+  {
+    title: "雨夜书桌",
+    artist: "LOFI · 学习与放空背景音",
+    cover: "covers/lofi.png",
+    src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+  },
+  {
+    title: "驶向落日",
+    artist: "SYNTHWAVE · 夜间公路",
+    cover: "covers/synthwave.png",
+    src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+  }
+];
+
+const audio = document.getElementById("audio");
+const vinyl = document.getElementById("vinyl");
+const vinylWrap = document.getElementById("vinylWrap");
+const coverImg = document.getElementById("cover");
+const nowTitle = document.getElementById("nowTitle");
+const nowArtist = document.getElementById("nowArtist");
+const playBtn = document.getElementById("playBtn");
+const iconPlay = document.getElementById("iconPlay");
+const iconPause = document.getElementById("iconPause");
+const progressBar = document.getElementById("progressBar");
+const progressFill = document.getElementById("progressFill");
+const currentTimeEl = document.getElementById("currentTime");
+const durationEl = document.getElementById("duration");
+const volumeInput = document.getElementById("volume");
+const trackList = document.getElementById("trackList");
+
+let current = 0;
+let isPlaying = false;
+
+function fmt(sec) {
+  if (!isFinite(sec)) return "0:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function renderList() {
+  trackList.innerHTML = "";
+  tracks.forEach((t, i) => {
+    const div = document.createElement("div");
+    div.className = "track" + (i === current ? " active" : "") + (i === current && isPlaying ? " playing" : "");
+    div.innerHTML = `
+      <img src="${t.cover}" alt="${t.title}">
+      <div class="track-info">
+        <div class="t-name">${t.title}</div>
+        <div class="t-artist">${t.artist}</div>
+      </div>
+      <div class="eq"><i></i><i></i><i></i></div>
+      <span class="t-dur">${t.durText || ""}</span>
+    `;
+    div.addEventListener("click", () => loadTrack(i, true));
+    trackList.appendChild(div);
+  });
+}
+
+function loadTrack(index, autoplay) {
+  current = index;
+  const t = tracks[index];
+  audio.src = t.src;
+  coverImg.src = t.cover;
+  nowTitle.textContent = t.title;
+  nowArtist.textContent = t.artist;
+  renderList();
+  if (autoplay) play();
+}
+
+function play() {
+  audio.play().then(() => {
+    isPlaying = true;
+    vinyl.classList.add("playing");
+    vinylWrap.classList.add("playing");
+    iconPlay.style.display = "none";
+    iconPause.style.display = "block";
+    renderList();
+  }).catch(() => {});
+}
+
+function pause() {
+  audio.pause();
+  isPlaying = false;
+  vinyl.classList.remove("playing");
+  vinylWrap.classList.remove("playing");
+  iconPlay.style.display = "block";
+  iconPause.style.display = "none";
+  renderList();
+}
+
+playBtn.addEventListener("click", () => (isPlaying ? pause() : play()));
+document.getElementById("prevBtn").addEventListener("click", () => loadTrack((current - 1 + tracks.length) % tracks.length, true));
+document.getElementById("nextBtn").addEventListener("click", () => loadTrack((current + 1) % tracks.length, true));
+
+audio.addEventListener("timeupdate", () => {
+  if (audio.duration) {
+    progressFill.style.width = (audio.currentTime / audio.duration * 100) + "%";
+    currentTimeEl.textContent = fmt(audio.currentTime);
+  }
+});
+
+audio.addEventListener("loadedmetadata", () => {
+  durationEl.textContent = fmt(audio.duration);
+  tracks[current].durText = fmt(audio.duration);
+  renderList();
+});
+
+audio.addEventListener("ended", () => loadTrack((current + 1) % tracks.length, true));
+
+progressBar.addEventListener("click", (e) => {
+  if (!audio.duration) return;
+  const rect = progressBar.getBoundingClientRect();
+  audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+});
+
+volumeInput.addEventListener("input", () => {
+  audio.volume = volumeInput.value / 100;
+});
+
+// 键盘空格控制
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space") { e.preventDefault(); isPlaying ? pause() : play(); }
+});
+
+audio.volume = 0.7;
+loadTrack(0, false);
+</script>
+</body>
+</html>

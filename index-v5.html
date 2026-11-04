@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一人一首 · 每日一首好歌</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,600;0,700;0,800;0,900&family=Playfair+Display:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #fff;
+    --hot-a: #ffc048;
+    --hot-b: #ff3b2f;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: #070707;
+    font-family: "PingFang SC", "Microsoft YaHei", "Inter", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+
+  /* 16:9 画布，1em = 画布宽度 1% */
+  .canvas {
+    position: relative;
+    width: 100vw;
+    max-height: 100vh;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: #101010;
+    font-size: 10px;
+    display: flex;
+    flex-direction: column;
+    padding: 2.8em 5em 2.4em;
+  }
+  @media (max-aspect-ratio: 16/9) {
+    .canvas { width: auto; height: 100vh; }
+  }
+
+  /* 背景 */
+  .bg {
+    position: absolute; inset: -15%;
+    background-size: cover; background-position: center;
+    filter: blur(5em) saturate(1.45) brightness(1.02);
+    transform: scale(1.15);
+    transition: background-image .9s ease;
+  }
+  .shade {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, rgba(8,8,8,.7) 0%, rgba(8,8,8,.42) 45%, rgba(8,8,8,.55) 100%),
+      radial-gradient(ellipse 62% 58% at 50% 45%, transparent 28%, rgba(0,0,0,.5) 100%);
+  }
+  .grain {
+    position: absolute; inset: 0; opacity: .07; mix-blend-mode: overlay;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ===== 顶部 ===== */
+  .topbar {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex: 0 0 auto;
+    height: 7.4em;
+  }
+  .artist-name {
+    font-family: "Inter", sans-serif;
+    font-weight: 900;
+    font-size: 5.8em;
+    line-height: 1;
+    letter-spacing: .01em;
+    background: linear-gradient(100deg, var(--hot-a) 6%, #ff8a3d 46%, var(--hot-b) 94%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    text-transform: uppercase;
+    filter: drop-shadow(0 .05em .12em rgba(0,0,0,.4));
+  }
+  .hashtag {
+    position: absolute;
+    right: 0; top: .9em;
+    font-size: 2.1em;
+    font-weight: 700;
+    letter-spacing: .03em;
+    color: #fff;
+    text-shadow: 0 .1em .4em rgba(0,0,0,.65);
+  }
+
+  /* ===== 主体 ===== */
+  .body {
+    position: relative;
+    z-index: 3;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 40em 1fr;
+    gap: 4.4em;
+    align-items: center;
+    min-height: 0;
+  }
+
+  /* 左：专辑卡 */
+  .album { display: flex; flex-direction: column; }
+  .dear {
+    font-family: "Playfair Display", serif;
+    font-style: italic;
+    font-size: 2.9em;
+    color: rgba(255,255,255,.94);
+    margin-bottom: .3em;
+  }
+  .album-title {
+    font-size: 2.3em;
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: rgba(255,255,255,.88);
+    margin-bottom: .28em;
+    white-space: nowrap;
+  }
+  .album-title .year {
+    font-family: "Inter", sans-serif;
+    font-size: .84em;
+    font-weight: 500;
+    color: rgba(255,255,255,.6);
+  }
+  .genre-line {
+    font-size: 1.85em;
+    letter-spacing: .16em;
+    color: rgba(255,255,255,.48);
+    margin-bottom: 1.1em;
+  }
+
+  .sleeve {
+    position: relative;
+    width: 19em; height: 19em;
+    margin-bottom: 1.4em;
+  }
+  .disc {
+    position: absolute;
+    top: .9em; left: 13.2em;
+    width: 17.6em; height: 17.6em;
+    border-radius: 50%;
+    background: #090909;
+    box-shadow: 1em 1.2em 2.6em rgba(0,0,0,.65);
+    animation: spin 9s linear infinite;
+    animation-play-state: paused;
+    z-index: 1;
+  }
+  .disc.on { animation-play-state: running; }
+  .disc::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: repeating-radial-gradient(circle, #090909 0 1.1px, #191919 1.1px 1.9px);
+  }
+  .disc::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 200deg, transparent 0deg, rgba(255,255,255,.1) 14deg, transparent 36deg, transparent 158deg, rgba(255,255,255,.07) 174deg, transparent 200deg);
+  }
+  .disc .sheet {
+    position: absolute; inset: 34%;
+    border-radius: 50%; overflow: hidden;
+  }
+  .disc .sheet img { width: 100%; height: 100%; object-fit: cover; }
+  .disc .hole {
+    position: absolute; top: 50%; left: 50%;
+    width: 1.1em; height: 1.1em;
+    transform: translate(-50%,-50%);
+    border-radius: 50%; background: #111;
+  }
+  .cover {
+    position: relative;
+    width: 19em; height: 19em;
+    object-fit: cover;
+    display: block;
+    box-shadow: 0 1em 2.6em rgba(0,0,0,.65);
+    z-index: 2;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 播放条 */
+  .player { width: 27em; }
+  .bar {
+    position: relative; height: .32em;
+    background: rgba(255,255,255,.18);
+    border-radius: 1em; cursor: pointer;
+  }
+  .bar .fill {
+    position: absolute; left: 0; top: 0; height: 100%; width: 0%;
+    background: #fff; border-radius: 1em;
+  }
+  .times {
+    display: flex; justify-content: space-between;
+    margin-top: .6em;
+    font-size: 1.6em;
+    color: rgba(255,255,255,.48);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .06em;
+  }
+  .btns {
+    display: flex; align-items: center; gap: 2.3em;
+    margin-top: .7em;
+  }
+  .btn {
+    border: none; background: none; cursor: pointer; padding: 0;
+    color: rgba(255,255,255,.85);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+    transition: color .2s, transform .12s;
+  }
+  .btn svg { width: 2.3em; height: 2.3em; display: block; }
+  .btn:hover { color: var(--hot-a); }
+  .btn:active { transform: scale(.9); }
+  .btn.main svg { width: 2.8em; height: 2.8em; }
+
+  /* 右：字幕 */
+  .captions {
+    display: flex;
+    flex-direction: column;
+    gap: .5em;
+    overflow: hidden;
+    padding-right: 1em;
+  }
+  .cap {
+    font-size: 2.42em;
+    font-weight: 700;
+    line-height: 1.6;
+    letter-spacing: .02em;
+    color: rgba(255,255,255,.3);
+    transition: color .5s ease, transform .5s ease;
+    text-shadow: 0 .06em .3em rgba(0,0,0,.6);
+    transform-origin: left center;
+  }
+  .cap.active { color: #fff; transform: scale(1.02); }
+  .cap.done { color: rgba(255,255,255,.26); }
+  .cap.upcoming { color: rgba(255,255,255,.12); }
+
+  /* ===== 底部 ===== */
+  .foot {
+    position: relative;
+    z-index: 3;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 1.5em;
+    letter-spacing: .12em;
+    color: rgba(255,255,255,.42);
+    padding-top: .5em;
+  }
+  .foot .left { display: flex; align-items: center; gap: 1.2em; }
+  .badge {
+    padding: .45em 1.3em;
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 99em;
+    font-size: .92em;
+    letter-spacing: .1em;
+  }
+  .hint { letter-spacing: .16em; color: rgba(255,255,255,.3); }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(.5em); }
+    to { opacity: 1; transform: none; }
+  }
+  .anim { animation: rise .9s cubic-bezier(.2,.8,.25,1) both; }
+</style>
+</head>
+<body>
+
+<div class="canvas" id="canvas">
+  <div class="bg" id="bg"></div>
+  <div class="shade"></div>
+  <div class="grain"></div>
+
+  <div class="topbar">
+    <div class="artist-name anim" id="artistName">NANASE</div>
+    <div class="hashtag anim" id="hashtag" style="animation-delay:.08s">#一人一首Jazz hip-hop#</div>
+  </div>
+
+  <div class="body">
+    <!-- 左：专辑卡 -->
+    <div class="album">
+      <div class="dear anim" style="animation-delay:.12s" id="dear">DEAR~</div>
+      <div class="album-title anim" style="animation-delay:.18s">
+        <span id="albumName">《PIANO MEETS HIPHOP》</span>
+        <span class="year" id="albumYear">(2010)</span>
+      </div>
+      <div class="genre-line anim" style="animation-delay:.24s" id="genreLine">JAZZ HIP-HOP</div>
+
+      <div class="sleeve anim" style="animation-delay:.3s">
+        <div class="disc" id="disc">
+          <div class="sheet"><img id="discCover" src="covers/city-pop.png" alt=""></div>
+          <div class="hole"></div>
+        </div>
+        <img class="cover" id="cover" src="covers/city-pop.png" alt="">
+      </div>
+
+      <div class="player anim" style="animation-delay:.38s">
+        <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
+        <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+        <div class="btns">
+          <button class="btn" id="prev" aria-label="上一首">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+          </button>
+          <button class="btn main" id="play" aria-label="播放或暂停">
+            <svg id="iPlay" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="iPause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+          </button>
+          <button class="btn" id="next" aria-label="下一首">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+          </button>
+          <button class="btn" id="capNext" aria-label="下一句字幕" title="下一句 (C)">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zM4 11h11v2H4zM4 16h14v2H4z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：口播字幕 -->
+    <div class="captions" id="captions"></div>
+  </div>
+
+  <div class="foot">
+    <div class="left"><span class="badge">每日更新</span><span id="footText">一人一首 · 每日一首好歌</span></div>
+    <div class="hint">空格播放 · ←→ 切歌 · C 换句</div>
+  </div>
+</div>
+
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+const tracks = [
+  {
+    artist: "NANASE",
+    dear: "DEAR~",
+    album: "《PIANO MEETS HIPHOP》",
+    year: "(2010)",
+    genre: "JAZZ HIP-HOP",
+    hashtag: "#一人一首Jazz hip-hop#",
+    cover: "covers/city-pop.png",
+    src: "audio/track1.mp3",
+    captions: [
+      "今天开始做一个新的系列叫做：一人一首 Jazz hip-hop",
+      "我是如何被一步步被这个风格吸引的",
+      "从鼓点的松弛感开始，再到钢琴的留白",
+      "这一首，适合一个人走夜路的时候听"
+    ]
+  },
+  {
+    artist: "LOFI",
+    dear: "DEAR~",
+    album: "《DESK BY THE WINDOW》",
+    year: "(2021)",
+    genre: "LOFI HIP-HOP",
+    hashtag: "#一人一首Lofi hip-hop#",
+    cover: "covers/lofi.png",
+    src: "audio/track2.mp3",
+    captions: [
+      "雨天最适合的一类音乐，大概就是 Lofi",
+      "不用听清任何词，只需要那个循环的底噪",
+      "像有人陪着你，又完全不打扰你",
+      "这一首，写给凌晨两点还在桌前的人"
+    ]
+  },
+  {
+    artist: "SYNTHWAVE",
+    dear: "DEAR~",
+    album: "《DRIVING INTO THE SUNSET》",
+    year: "(2019)",
+    genre: "SYNTHWAVE",
+    hashtag: "#一人一首Synthwave#",
+    cover: "covers/synthwave.png",
+    src: "audio/track3.mp3",
+    captions: [
+      "合成器一响，整条公路都变成了霓虹色",
+      "八十年代的浪漫，其实是一种很克制的孤独",
+      "贝斯线推着你往前开，风景一直在后退",
+      "这一首，献给所有还在路上的人"
+    ]
+  }
+];
+
+const $ = id => document.getElementById(id);
+const canvas = $("canvas"), audio = $("audio"), disc = $("disc");
+let current = 0, playing = false, capIndex = 0, capTimer = null;
+
+function sizeCanvas() { canvas.style.fontSize = (canvas.clientWidth / 100) + "px"; }
+
+function renderCaptions() {
+  const caps = tracks[current].captions;
+  $("captions").innerHTML = "";
+  caps.forEach((text, i) => {
+    const p = document.createElement("div");
+    p.className = "cap " + (i === capIndex ? "active" : i < capIndex ? "done" : "upcoming");
+    p.textContent = text;
+    $("captions").appendChild(p);
+  });
+}
+
+function nextCap() {
+  capIndex = (capIndex + 1) % tracks[current].captions.length;
+  renderCaptions();
+}
+function startCapTimer() {
+  clearInterval(capTimer);
+  const total = tracks[current].captions.length;
+  capTimer = setInterval(() => {
+    if (!playing) return;
+    if (capIndex < total - 1) { capIndex++; renderCaptions(); }
+  }, 9000);
+}
+
+function fmt(s) {
+  if (!isFinite(s)) return "0:00";
+  return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+}
+
+function load(i, autoplay) {
+  current = i;
+  const t = tracks[i];
+  audio.src = t.src;
+  $("bg").style.backgroundImage = `url("${t.cover}")`;
+  $("cover").src = t.cover;
+  $("discCover").src = t.cover;
+  $("artistName").textContent = t.artist;
+  $("hashtag").textContent = t.hashtag;
+  $("dear").textContent = t.dear;
+  $("albumName").textContent = t.album;
+  $("albumYear").textContent = t.year;
+  $("genreLine").textContent = t.genre;
+  $("footText").textContent = "一人一首 · " + t.album.replace(/[《》]/g, "");
+  capIndex = 0;
+  renderCaptions();
+  startCapTimer();
+  if (autoplay) play();
+}
+
+function play() {
+  audio.play().then(() => {
+    playing = true;
+    disc.classList.add("on");
+    $("iPlay").style.display = "none";
+    $("iPause").style.display = "block";
+  }).catch(() => {});
+}
+function pause() {
+  audio.pause();
+  playing = false;
+  disc.classList.remove("on");
+  $("iPlay").style.display = "block";
+  $("iPause").style.display = "none";
+}
+
+$("play").onclick = () => playing ? pause() : play();
+$("prev").onclick = () => load((current - 1 + tracks.length) % tracks.length, true);
+$("next").onclick = () => load((current + 1) % tracks.length, true);
+$("capNext").onclick = nextCap;
+audio.onended = () => load((current + 1) % tracks.length, true);
+audio.ontimeupdate = () => {
+  if (audio.duration) {
+    $("fill").style.width = (audio.currentTime / audio.duration * 100) + "%";
+    $("cur").textContent = fmt(audio.currentTime);
+  }
+};
+audio.onloadedmetadata = () => $("dur").textContent = fmt(audio.duration);
+$("bar").onclick = e => {
+  if (!audio.duration) return;
+  const r = $("bar").getBoundingClientRect();
+  audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
+};
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); playing ? pause() : play(); }
+  if (e.code === "ArrowRight") $("next").click();
+  if (e.code === "ArrowLeft") $("prev").click();
+  if (e.code === "KeyC") nextCap();
+});
+
+window.addEventListener("resize", sizeCanvas);
+sizeCanvas();
+audio.volume = 0.75;
+load(0, false);
+</script>
+</body>
+</html>

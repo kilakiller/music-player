@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一人一首 · 每日音乐分享</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,700;0,800;0,900;1,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fdf3e3;
+    --pink: #ff9fb2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: #0a0908;
+    font-family: "PingFang SC", "Microsoft YaHei", "Inter", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  ::selection { background: var(--pink); color: #1a1210; }
+
+  /* ===== 9:16 画布；1em = 画布宽度的 1% ===== */
+  .canvas {
+    position: relative;
+    aspect-ratio: 9 / 16;
+    height: 100vh;
+    max-width: 100vw;
+    overflow: hidden;
+    background: #1b1512;
+    font-size: 10px; /* JS 覆盖 */
+  }
+  @media (max-aspect-ratio: 9/16) {
+    .canvas { height: auto; width: 100vw; }
+  }
+
+  /* 虚化背景 */
+  .bg {
+    position: absolute; inset: -12%;
+    background-size: cover;
+    background-position: center;
+    filter: blur(4.2em) saturate(1.35) brightness(.98);
+    transform: scale(1.14);
+    transition: background-image .8s ease;
+  }
+  .wash {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 48% at 50% 40%, rgba(255,196,150,.22), transparent 70%),
+      linear-gradient(180deg, rgba(28,16,12,.25) 0%, rgba(240,150,110,.06) 45%, rgba(20,12,10,.72) 100%);
+  }
+  .grain {
+    position: absolute; inset: 0;
+    opacity: .1; pointer-events: none; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .content {
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 6em 7em 5em;
+  }
+
+  /* 顶部系列标识 */
+  .series {
+    display: flex;
+    align-items: center;
+    gap: 1.6em;
+    font-size: 1.85em;
+    letter-spacing: .16em;
+    color: rgba(253,243,227,.7);
+    text-shadow: 0 .3em 1.4em rgba(0,0,0,.55);
+  }
+  .series .dot {
+    width: .62em; height: .62em; border-radius: 50%;
+    background: var(--pink);
+    box-shadow: 0 0 1em rgba(255,159,178,.85);
+  }
+  .series .vol {
+    margin-left: auto;
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+    font-size: .96em;
+    letter-spacing: .12em;
+  }
+
+  /* 三行大字 */
+  .headline { margin-top: 11em; }
+  .line {
+    display: block;
+    line-height: 1.02;
+    white-space: nowrap;
+    text-shadow: 0 .1em .9em rgba(0,0,0,.55), 0 .04em .2em rgba(0,0,0,.3);
+  }
+  .l1 {
+    font-size: 14.5em;
+    font-weight: 600;
+    letter-spacing: .05em;
+    color: var(--cream);
+    margin-bottom: .5em;
+  }
+  .l2 {
+    font-family: "Inter", "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    letter-spacing: -.035em;
+    text-transform: lowercase;
+    color: var(--cream);
+    margin-bottom: .1em;
+  }
+  .l3 {
+    font-family: "Inter", "Helvetica Neue", "PingFang SC", sans-serif;
+    font-weight: 900;
+    letter-spacing: -.01em;
+    color: var(--pink);
+    text-shadow: 0 .1em .9em rgba(247,126,149,.35), 0 .04em .2em rgba(0,0,0,.35);
+  }
+  .line .ch { display: inline-block; }
+
+  .sub {
+    margin-top: 2.6em;
+    font-size: 2.3em;
+    line-height: 1.95;
+    color: rgba(253,243,227,.78);
+    max-width: 88%;
+    letter-spacing: .03em;
+    text-shadow: 0 .2em 1.2em rgba(0,0,0,.65);
+  }
+
+  /* 底部播放区 */
+  .dock { margin-top: auto; }
+  .disc-row {
+    display: flex;
+    align-items: center;
+    gap: 3em;
+    margin-bottom: 2.2em;
+  }
+  .mini-disc {
+    position: relative;
+    width: 13.5em; height: 13.5em;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #0b0a09;
+    box-shadow: 0 .8em 2.4em rgba(0,0,0,.65), 0 0 0 1px rgba(253,243,227,.12);
+    animation: spin 8s linear infinite;
+    animation-play-state: paused;
+  }
+  .mini-disc.on { animation-play-state: running; }
+  .mini-disc::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: repeating-radial-gradient(circle, #0b0a09 0 1.2px, #17130f 1.2px 2px);
+  }
+  .mini-disc img {
+    position: absolute; inset: 19%;
+    width: 62%; height: 62%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .mini-disc .pin {
+    position: absolute; top: 50%; left: 50%;
+    width: .55em; height: .55em;
+    transform: translate(-50%,-50%);
+    border-radius: 50%;
+    background: #e8e0d0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .meta { flex: 1; min-width: 0; }
+  .meta .t {
+    font-size: 2.7em;
+    font-weight: 600;
+    color: var(--cream);
+    letter-spacing: .05em;
+    margin-bottom: .45em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .meta .a {
+    font-size: 1.95em;
+    color: rgba(253,243,227,.52);
+    letter-spacing: .12em;
+  }
+
+  .bar {
+    position: relative;
+    height: .32em;
+    background: rgba(253,243,227,.18);
+    border-radius: 1em;
+    cursor: pointer;
+  }
+  .bar .fill {
+    position: absolute; left: 0; top: 0; height: 100%; width: 0%;
+    background: var(--pink);
+    border-radius: 1em;
+  }
+  .times {
+    display: flex; justify-content: space-between;
+    margin-top: .9em;
+    font-size: 1.8em;
+    color: rgba(253,243,227,.42);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .08em;
+  }
+
+  .controls {
+    display: flex; align-items: center; gap: 3.4em;
+    margin-top: 2.4em;
+  }
+  .btn {
+    border: none; background: none; cursor: pointer;
+    color: rgba(253,243,227,.7);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+    padding: 0;
+    transition: color .2s, transform .12s;
+  }
+  .btn svg { width: 2.6em; height: 2.6em; display: block; }
+  .btn:hover { color: var(--cream); }
+  .btn:active { transform: scale(.9); }
+  .btn.main {
+    width: 9em; height: 9em;
+    min-width: 9em; min-height: 9em;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    background: var(--cream);
+    color: #1a1210;
+    box-shadow: 0 .6em 2.2em rgba(0,0,0,.5);
+  }
+  .btn.main svg { width: 2.9em; height: 2.9em; }
+  .btn.main:hover { background: var(--pink); }
+  .vol { margin-left: auto; display: flex; align-items: center; gap: 1.6em; color: rgba(253,243,227,.45); }
+  .vol svg { width: 2.2em; height: 2.2em; flex: 0 0 auto; }
+  .vol input {
+    appearance: none; -webkit-appearance: none;
+    width: 18em; height: .32em;
+    background: rgba(253,243,227,.2);
+    border-radius: 1em; outline: none; cursor: pointer;
+    accent-color: var(--pink);
+  }
+  .vol input::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none;
+    width: 1.5em; height: 1.5em;
+    border: none;
+    border-radius: 50%; background: var(--cream);
+  }
+
+  .chips {
+    display: flex; gap: 2em;
+    margin-top: 2.8em;
+    flex-wrap: wrap;
+  }
+  .chip {
+    padding: .95em 2.8em;
+    border: 1px solid rgba(253,243,227,.22);
+    border-radius: 99em;
+    font-size: 1.85em;
+    letter-spacing: .1em;
+    color: rgba(253,243,227,.62);
+    cursor: pointer;
+    transition: all .22s;
+    backdrop-filter: blur(.6em);
+  }
+  .chip:hover { border-color: rgba(253,243,227,.5); color: var(--cream); }
+  .chip.active {
+    background: var(--pink);
+    border-color: var(--pink);
+    color: #1a1210;
+    font-weight: 600;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(2em); }
+    to { opacity: 1; transform: none; }
+  }
+  .anim { animation: rise .8s cubic-bezier(.2,.8,.25,1) both; }
+</style>
+</head>
+<body>
+
+<div class="canvas" id="canvas">
+  <div class="bg" id="bg"></div>
+  <div class="wash"></div>
+  <div class="grain"></div>
+
+  <div class="content">
+    <div class="series anim" style="animation-delay:.05s">
+      <span class="dot"></span>
+      <span>一人一首 · 每日分享</span>
+      <span class="vol" id="volNo">VOL.001</span>
+    </div>
+
+    <div class="headline">
+      <span class="line l1 anim">一人一首</span>
+      <span class="line l2" id="l2">jazzhiphop</span>
+      <span class="line l3" id="l3">NANASE</span>
+    </div>
+
+    <p class="sub anim" id="sub" style="animation-delay:.45s"></p>
+
+    <div class="dock">
+      <div class="disc-row anim" style="animation-delay:.55s">
+        <div class="mini-disc" id="disc">
+          <img id="cover" src="covers/city-pop.png" alt="">
+          <div class="pin"></div>
+        </div>
+        <div class="meta">
+          <div class="t" id="trackTitle">街灯唱片店</div>
+          <div class="a" id="trackArtist">CITY POP · 傍晚散步</div>
+        </div>
+      </div>
+
+      <div class="anim" style="animation-delay:.62s">
+        <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
+        <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+      </div>
+
+      <div class="controls anim" style="animation-delay:.7s">
+        <button class="btn" id="prev" aria-label="上一首">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+        </button>
+        <button class="btn main" id="play" aria-label="播放或暂停">
+          <svg id="iPlay" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="iPause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+        <button class="btn" id="next" aria-label="下一首">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+        </button>
+        <div class="vol">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+          <input type="range" id="volume" min="0" max="100" value="70" aria-label="音量">
+        </div>
+      </div>
+
+      <div class="chips anim" id="chips" style="animation-delay:.78s"></div>
+    </div>
+  </div>
+</div>
+
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+const tracks = [
+  {
+    l2: "city pop", l3: "街灯唱片店",
+    title: "街灯唱片店", artist: "CITY POP · 傍晚散步",
+    sub: "路灯一盏一盏亮起来的时候，这条街就变成了八十年代的唱片封面。",
+    cover: "covers/city-pop.png", src: "audio/track1.mp3"
+  },
+  {
+    l2: "lofi hiphop", l3: "雨夜书桌",
+    title: "雨夜书桌", artist: "LOFI · 学习放空",
+    sub: "雨点敲在窗上，台灯把桌面圈成一座小岛，今晚只做一件事：什么都不赶。",
+    cover: "covers/lofi.png", src: "audio/track2.mp3"
+  },
+  {
+    l2: "synthwave", l3: "驶向落日",
+    title: "驶向落日", artist: "SYNTHWAVE · 夜间公路",
+    sub: "把车窗摇下来，让合成器的贝斯线和风一起灌进来，落日是今晚的终点站。",
+    cover: "covers/synthwave.png", src: "audio/track3.mp3"
+  }
+];
+
+const $ = id => document.getElementById(id);
+const canvas = $("canvas"), audio = $("audio"), disc = $("disc");
+let current = 0, playing = false;
+
+/* 1em = 画布宽度的 1%，保证竖屏排版不溢出 */
+function sizeCanvas() {
+  canvas.style.fontSize = (canvas.clientWidth / 100) + "px";
+  fit($("l2"), 20);
+  fit($("l3"), 25);
+}
+function fit(el, maxEm) {
+  const avail = el.parentElement.clientWidth;
+  let fs = maxEm * (canvas.clientWidth / 100);
+  el.style.fontSize = fs + "px";
+  let guard = 0;
+  while (el.scrollWidth > avail && fs > 8 && guard++ < 240) {
+    fs *= 0.97;
+    el.style.fontSize = fs + "px";
+  }
+}
+
+/* 期号 */
+$("volNo").textContent = "VOL." + String(Math.floor((new Date() - new Date(2026, 0, 1)) / 86400000) + 1).padStart(3, "0");
+
+/* 逐字入场 */
+const st = document.createElement("style");
+st.textContent = "@keyframes chIn{from{opacity:0;transform:translateY(.3em)}to{opacity:1;transform:none}}";
+document.head.appendChild(st);
+
+function setLine(el, text, delayBase) {
+  el.innerHTML = "";
+  [...text].forEach((c, i) => {
+    const s = document.createElement("span");
+    s.className = "ch";
+    s.textContent = c === " " ? "\u00A0" : c;
+    s.style.animation = `chIn .5s ${delayBase + i * .03}s cubic-bezier(.2,.8,.3,1) both`;
+    el.appendChild(s);
+  });
+  requestAnimationFrame(() => fit(el, el.classList.contains("l2") ? 20 : 25));
+}
+
+function fmt(s) {
+  if (!isFinite(s)) return "0:00";
+  return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+}
+
+function renderChips() {
+  $("chips").innerHTML = "";
+  tracks.forEach((t, i) => {
+    const c = document.createElement("div");
+    c.className = "chip" + (i === current ? " active" : "");
+    c.textContent = t.l2;
+    c.onclick = () => load(i, true);
+    $("chips").appendChild(c);
+  });
+}
+
+function load(i, autoplay) {
+  current = i;
+  const t = tracks[i];
+  audio.src = t.src;
+  $("bg").style.backgroundImage = `url("${t.cover}")`;
+  $("cover").src = t.cover;
+  setLine($("l2"), t.l2, .05);
+  setLine($("l3"), t.l3, .18);
+  $("trackTitle").textContent = t.title;
+  $("trackArtist").textContent = t.artist;
+  $("sub").textContent = t.sub;
+  renderChips();
+  if (autoplay) play();
+}
+
+function play() {
+  audio.play().then(() => {
+    playing = true;
+    disc.classList.add("on");
+    $("iPlay").style.display = "none";
+    $("iPause").style.display = "block";
+  }).catch(() => {});
+}
+function pause() {
+  audio.pause();
+  playing = false;
+  disc.classList.remove("on");
+  $("iPlay").style.display = "block";
+  $("iPause").style.display = "none";
+}
+
+$("play").onclick = () => playing ? pause() : play();
+$("prev").onclick = () => load((current - 1 + tracks.length) % tracks.length, true);
+$("next").onclick = () => load((current + 1) % tracks.length, true);
+audio.onended = () => load((current + 1) % tracks.length, true);
+audio.ontimeupdate = () => {
+  if (audio.duration) {
+    $("fill").style.width = (audio.currentTime / audio.duration * 100) + "%";
+    $("cur").textContent = fmt(audio.currentTime);
+  }
+};
+audio.onloadedmetadata = () => $("dur").textContent = fmt(audio.duration);
+$("bar").onclick = e => {
+  if (!audio.duration) return;
+  const r = $("bar").getBoundingClientRect();
+  audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
+};
+$("volume").oninput = e => audio.volume = e.target.value / 100;
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); playing ? pause() : play(); }
+  if (e.code === "ArrowRight") $("next").click();
+  if (e.code === "ArrowLeft") $("prev").click();
+});
+
+window.addEventListener("resize", sizeCanvas);
+sizeCanvas();
+audio.volume = 0.7;
+load(0, false);
+setTimeout(sizeCanvas, 300);
+</script>
+</body>
+</html>
